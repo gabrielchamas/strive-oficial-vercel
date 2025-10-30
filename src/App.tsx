@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Documents from "./pages/Documents";
 import Transactions from "./pages/Transactions";
 import Reports from "./pages/Reports";
+import Demonstrativo from "./pages/Demonstrativo";
 import Settings from "./pages/Settings";
 import Radar from "./pages/Radar";
 import Lancamentos from "./pages/Lancamentos";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/documents" element={<Documents />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/demonstrativo" element={<Demonstrativo />} />
           <Route path="/settings" element={<Settings />} />
         <Route path="/financeiro/radar" element={<Radar />} />
         <Route path="/financeiro/lancamentos" element={<Lancamentos />} />

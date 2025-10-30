@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { CreateLancamentoDialog } from "@/components/CreateLancamentoDialog";
 import { FilterLancamentosDialog, FilterState } from "@/components/FilterLancamentosDialog";
 import { getCategoryLabel } from "@/types/categories";
+import { mockLancamentos as lancamentosGerados } from "./lancamentos-data";
 
 type LancamentoType = "entrada" | "saida" | "recorrente" | "parcelado";
 type StatusType = "em_aberto" | "concluido";
@@ -39,51 +40,82 @@ interface Lancamento {
   atrasado?: boolean;
 }
 
-const mockLancamentos: Lancamento[] = [
-  {
-    id: "1",
-    tipo: "saida",
-    descricao: "Netflix",
-    vencimento: "01/09/2025",
-    valor: -39.90,
-    status: "em_aberto",
-    categoria: "software_ferramentas",
-    contato: "Não identificado",
-    atrasado: true,
-  },
-  {
-    id: "2",
-    tipo: "parcelado",
-    descricao: "iPhone - 1ª parcela",
-    vencimento: "01/09/2025",
-    valor: -416.66,
-    status: "em_aberto",
-    categoria: "aquisicao_tecnologias",
-    contato: "Não identificado",
-    parcela: "1/12",
-    atrasado: true,
-  },
-  {
-    id: "3",
-    tipo: "entrada",
-    descricao: "Cliente X - Serviço",
-    vencimento: "10/09/2025",
-    valor: 2100.00,
-    status: "concluido",
-    categoria: "venda_servicos",
-    contato: "Cliente X",
-  },
-  {
-    id: "4",
-    tipo: "recorrente",
-    descricao: "Assinatura Y",
-    vencimento: "15/09/2025",
-    valor: -29.90,
-    status: "em_aberto",
-    categoria: "software_ferramentas",
-    contato: "Não identificado",
-  },
+export const mockLancamentos: Lancamento[] = lancamentosGerados;
+
+/*
+// Dados antigos - substituídos por gerador em lancamentos-data.ts
+export const mockLancamentos: Lancamento[] = [
+  // Entradas operacionais (MRR de clientes SaaS)
+  { id: "oct-001", tipo: "entrada", descricao: "MRR - Cliente Alpha (Plano Pro)", vencimento: "02/10/2025", valor: 1490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Alpha" },
+  { id: "oct-002", tipo: "entrada", descricao: "MRR - Cliente Beta (Plano Business)", vencimento: "03/10/2025", valor: 2990.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Beta" },
+  { id: "oct-003", tipo: "entrada", descricao: "MRR - Cliente Gamma (Plano Starter)", vencimento: "03/10/2025", valor: 490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Gamma" },
+  { id: "oct-004", tipo: "entrada", descricao: "MRR - Cliente Delta (Plano Pro)", vencimento: "04/10/2025", valor: 1490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Delta" },
+  { id: "oct-005", tipo: "entrada", descricao: "MRR - Cliente Epsilon (Plano Business)", vencimento: "04/10/2025", valor: 2990.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Epsilon" },
+  { id: "oct-006", tipo: "entrada", descricao: "Onboarding - Cliente Zeta (setup)", vencimento: "05/10/2025", valor: 1200.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Zeta" },
+  { id: "oct-007", tipo: "entrada", descricao: "MRR - Cliente Theta (Plano Pro)", vencimento: "06/10/2025", valor: 1490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Theta" },
+  { id: "oct-008", tipo: "entrada", descricao: "MRR - Cliente Iota (Plano Starter)", vencimento: "06/10/2025", valor: 490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Iota" },
+  { id: "oct-009", tipo: "entrada", descricao: "Upgrade de plano - Cliente Gamma (diferença)", vencimento: "09/10/2025", valor: 300.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Gamma" },
+  { id: "oct-010", tipo: "entrada", descricao: "MRR - Cliente Kappa (Plano Business)", vencimento: "10/10/2025", valor: 2990.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Kappa" },
+  { id: "oct-011", tipo: "entrada", descricao: "MRR - Cliente Lambda (Plano Pro)", vencimento: "12/10/2025", valor: 1490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Lambda" },
+  { id: "oct-012", tipo: "entrada", descricao: "MRR - Cliente Mu (Plano Starter)", vencimento: "13/10/2025", valor: 490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Mu" },
+  { id: "oct-013", tipo: "entrada", descricao: "Serviço adicional - Treinamento (2h)", vencimento: "17/10/2025", valor: 600.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Beta" },
+  { id: "oct-014", tipo: "entrada", descricao: "MRR - Cliente Nu (Plano Pro)", vencimento: "20/10/2025", valor: 1490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Nu" },
+  { id: "oct-015", tipo: "entrada", descricao: "MRR - Cliente Xi (Plano Business)", vencimento: "22/10/2025", valor: 2990.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Xi" },
+  { id: "oct-016", tipo: "entrada", descricao: "MRR - Cliente Omicron (Plano Starter)", vencimento: "24/10/2025", valor: 490.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Omicron" },
+  { id: "oct-017", tipo: "entrada", descricao: "Reativação - Cliente Alpha (pró-rata)", vencimento: "27/10/2025", valor: 350.00, status: "concluido", categoria: "venda_servicos", contato: "Cliente Alpha" },
+
+  // Deduções diretas de vendas (taxas e descontos)
+  { id: "oct-101", tipo: "saida", descricao: "Taxas do gateway (2,49% + R$0,39)", vencimento: "05/10/2025", valor: -420.75, status: "concluido", categoria: "taxas_sobre_vendas", contato: "Gateway Pagamentos" },
+  { id: "oct-102", tipo: "saida", descricao: "Descontos promocionais concedidos", vencimento: "08/10/2025", valor: -300.00, status: "concluido", categoria: "descontos_comerciais", contato: "Campanha Outubro" },
+  { id: "oct-103", tipo: "saida", descricao: "Chargeback (1 transação)", vencimento: "15/10/2025", valor: -299.00, status: "concluido", categoria: "taxas_sobre_vendas", contato: "Adquirente" },
+
+  // Custo dos serviços (infra e terceiros)
+  { id: "oct-201", tipo: "saida", descricao: "AWS - EC2/RDS/S3 (setembro/competência)", vencimento: "07/10/2025", valor: -2350.40, status: "concluido", categoria: "custo_servicos_prestados", contato: "AWS" },
+  { id: "oct-202", tipo: "saida", descricao: "Cloudflare - CDN e WAF", vencimento: "08/10/2025", valor: -210.00, status: "concluido", categoria: "custo_servicos_prestados", contato: "Cloudflare" },
+  { id: "oct-203", tipo: "saida", descricao: "SendGrid - E-mails transacionais", vencimento: "09/10/2025", valor: -140.00, status: "concluido", categoria: "custo_servicos_prestados", contato: "SendGrid" },
+
+  // Despesas administrativas
+  { id: "oct-301", tipo: "recorrente", descricao: "Google Workspace", vencimento: "01/10/2025", valor: -120.00, status: "concluido", categoria: "software_ferramentas", contato: "Google" },
+  { id: "oct-302", tipo: "recorrente", descricao: "Figma", vencimento: "01/10/2025", valor: -75.00, status: "concluido", categoria: "software_ferramentas", contato: "Figma" },
+  { id: "oct-303", tipo: "recorrente", descricao: "GitHub", vencimento: "02/10/2025", valor: -45.00, status: "concluido", categoria: "software_ferramentas", contato: "GitHub" },
+  { id: "oct-304", tipo: "saida", descricao: "Contabilidade - Honorários", vencimento: "10/10/2025", valor: -650.00, status: "concluido", categoria: "servicos_contabilidade", contato: "Escritório Contábil" },
+  { id: "oct-305", tipo: "saida", descricao: "Internet escritório", vencimento: "11/10/2025", valor: -199.90, status: "concluido", categoria: "telefonia_internet", contato: "Operadora" },
+  { id: "oct-306", tipo: "saida", descricao: "Energia elétrica escritório", vencimento: "18/10/2025", valor: -480.30, status: "concluido", categoria: "energia_eletrica", contato: "Concessionária" },
+
+  // Pessoal
+  { id: "oct-401", tipo: "saida", descricao: "Folha - Salários (time produto)", vencimento: "05/10/2025", valor: -28000.00, status: "concluido", categoria: "salarios_ordenados", contato: "Equipe" },
+  { id: "oct-402", tipo: "saida", descricao: "Pró-labore sócios", vencimento: "05/10/2025", valor: -8000.00, status: "concluido", categoria: "pro_labore", contato: "Diretoria" },
+  { id: "oct-403", tipo: "saida", descricao: "Encargos trabalhistas (GPS/FGTS)", vencimento: "07/10/2025", valor: -7800.00, status: "concluido", categoria: "encargos_trabalhistas", contato: "Gov" },
+
+  // Vendas e marketing
+  { id: "oct-501", tipo: "saida", descricao: "Meta Ads", vencimento: "09/10/2025", valor: -3500.00, status: "concluido", categoria: "marketing_publicidade", contato: "Meta" },
+  { id: "oct-502", tipo: "saida", descricao: "Google Ads", vencimento: "16/10/2025", valor: -4200.00, status: "concluido", categoria: "publicidade_anuncios", contato: "Google" },
+  { id: "oct-503", tipo: "saida", descricao: "Ferramenta CRM (HubSpot)", vencimento: "12/10/2025", valor: -950.00, status: "concluido", categoria: "software_ferramentas", contato: "HubSpot" },
+  { id: "oct-504", tipo: "saida", descricao: "Comissões SDR", vencimento: "28/10/2025", valor: -2200.00, status: "concluido", categoria: "comissoes_vendas", contato: "Equipe Comercial" },
+
+  // Despesas financeiras
+  { id: "oct-601", tipo: "saida", descricao: "Tarifas bancárias", vencimento: "14/10/2025", valor: -145.90, status: "concluido", categoria: "tarifas_bancarias", contato: "Banco" },
+  { id: "oct-602", tipo: "saida", descricao: "Juros antecipação de recebíveis", vencimento: "21/10/2025", valor: -380.00, status: "concluido", categoria: "outras_despesas_financeiras", contato: "Banco" },
+
+  // Investimentos e parcelamentos
+  { id: "oct-701", tipo: "parcelado", descricao: "Notebook dev - 2/10", vencimento: "13/10/2025", valor: -520.00, status: "concluido", categoria: "aquisicao_tecnologias", contato: "Fornecedor Y", parcela: "2/10" },
+  { id: "oct-702", tipo: "saida", descricao: "Pesquisa e desenvolvimento (LLM fine-tuning)", vencimento: "19/10/2025", valor: -3200.00, status: "concluido", categoria: "pesquisa_desenvolvimento", contato: "Fornecedor IA" },
+
+  // Impostos sobre vendas (ex.: DAS/Simples competência setembro)
+  { id: "oct-801", tipo: "saida", descricao: "Impostos sobre vendas (competência set/25)", vencimento: "20/10/2025", valor: -5400.00, status: "concluido", categoria: "impostos_sobre_vendas", contato: "SEFAZ" },
+
+  // Outras receitas financeiras
+  { id: "oct-901", tipo: "entrada", descricao: "Receita aplicações financeiras", vencimento: "30/10/2025", valor: 260.00, status: "concluido", categoria: "receita_aplicacoes", contato: "Banco" },
+
+  // Alguns itens em aberto no fim do mês para testes de filtros
+  { id: "oct-950", tipo: "entrada", descricao: "MRR - Cliente Pi (Plano Pro)", vencimento: "29/10/2025", valor: 1490.00, status: "em_aberto", categoria: "venda_servicos", contato: "Cliente Pi" },
+  { id: "oct-951", tipo: "saida", descricao: "Assinatura Notion", vencimento: "29/10/2025", valor: -120.00, status: "em_aberto", categoria: "software_ferramentas", contato: "Notion" },
+  { id: "oct-952", tipo: "saida", descricao: "Aluguel escritório (out/25)", vencimento: "30/10/2025", valor: -3500.00, status: "em_aberto", categoria: "alugueis_condominio", contato: "Imobiliária" },
+  { id: "oct-953", tipo: "saida", descricao: "Limpeza e conservação", vencimento: "30/10/2025", valor: -380.00, status: "em_aberto", categoria: "limpeza_conservacao", contato: "Prestador Z" },
+  { id: "oct-954", tipo: "saida", descricao: "Brindes promocionais (evento SaaS Week)", vencimento: "31/10/2025", valor: -600.00, status: "em_aberto", categoria: "brindes_promocionais", contato: "Fornecedor Brindes" },
+  { id: "oct-955", tipo: "entrada", descricao: "MRR - Cliente Rho (Plano Business)", vencimento: "31/10/2025", valor: 2990.00, status: "em_aberto", categoria: "venda_servicos", contato: "Cliente Rho" },
 ];
+*/
 
 const Lancamentos = () => {
   const location = useLocation();
