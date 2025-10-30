@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -39,6 +39,26 @@ export const FilterLancamentosDialog = ({
     status: "todos",
     conciliacao: "todos",
   });
+
+  // Categories available according to selected direction
+  const categoriasDisponiveis = useMemo(() => {
+    if (filters.direcao === "entradas") return CATEGORIAS_ENTRADAS;
+    if (filters.direcao === "saidas") return CATEGORIAS_SAIDAS;
+    return [...CATEGORIAS_ENTRADAS, ...CATEGORIAS_SAIDAS];
+  }, [filters.direcao]);
+
+  // Ensure selected category remains valid when changing direction
+  useEffect(() => {
+    if (!filters.categoria) return;
+    const allowed = new Set<string>();
+    categoriasDisponiveis.forEach(cat => {
+      if (cat.subcategories) cat.subcategories.forEach(sub => allowed.add(sub.value));
+      else allowed.add(cat.value);
+    });
+    if (!allowed.has(filters.categoria)) {
+      setFilters({ ...filters, categoria: undefined });
+    }
+  }, [filters.direcao]);
 
   const handleApply = () => {
     onApplyFilters(filters);
@@ -216,7 +236,7 @@ export const FilterLancamentosDialog = ({
             </Select>
           </div>
 
-          {/* Categoria */}
+          {/* Categoria (depende da direção) */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Categoria</label>
             <Select value={filters.categoria} onValueChange={(value) => setFilters({ ...filters, categoria: value })}>
@@ -225,7 +245,7 @@ export const FilterLancamentosDialog = ({
               </SelectTrigger>
               <SelectContent className="bg-background max-h-[300px]">
                 <SelectItem value="__all__">Todas as categorias</SelectItem>
-                {[...CATEGORIAS_ENTRADAS, ...CATEGORIAS_SAIDAS].map((cat) => (
+                {categoriasDisponiveis.map((cat) => (
                   cat.subcategories ? (
                     cat.subcategories.map((sub) => (
                       <SelectItem key={sub.value} value={sub.value}>

@@ -2,6 +2,7 @@ import {
   Home, Target, CreditCard, Layers, RefreshCw, Calendar, BarChart3, Building, 
   Grid3X3, TrendingUp, BarChart, Users, FileText, Tags, Tag, Search, Edit, ChevronDown, Pin
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ import {
 type MenuItemType = {
   title: string;
   url: string;
-  icon: any;
+  icon: LucideIcon;
   hasPin?: boolean;
   comingSoon?: boolean;
 };

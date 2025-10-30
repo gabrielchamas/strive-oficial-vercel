@@ -16,10 +16,28 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CATEGORIAS_ENTRADAS, CATEGORIAS_SAIDAS } from "@/types/categories";
 
+type Lancamento = {
+  id: string;
+  tipo: "entrada" | "saida" | "padrao" | "parcelado" | "recorrente";
+  descricao: string;
+  vencimento: string;
+  valor: number;
+  status: "concluido" | "em_aberto";
+  categoria: string;
+  contato: string;
+  // Campos opcionais por tipo
+  parcela?: string;
+  numeroParcelas?: number;
+  frequencia?: string;
+  diaRepeticao?: number;
+  conclusaoAutomatica?: boolean;
+  apenasDiasUteis?: boolean;
+};
+
 interface CreateLancamentoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateLancamento: (lancamento: any) => void;
+  onCreateLancamento: (lancamento: Lancamento) => void;
 }
 
 export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento }: CreateLancamentoDialogProps) => {
@@ -67,6 +85,13 @@ export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento 
     const valorNumerico = parseFloat(valor.replace(",", "."));
     const valorFinal = tipoTransacao === "saida" ? -valorNumerico : valorNumerico;
 
+    const contatoMapValueToLabel: Record<string, string> = {
+      "cliente_x": "Cliente X",
+      "fornecedor_y": "Fornecedor Y",
+      "prestador_z": "Prestador Z",
+      "nao-identificado": "Não identificado",
+    };
+
     const baseLancamento = {
       id: Math.random().toString(36).substr(2, 9),
       tipo: tipoLancamento === "padrao" ? tipoTransacao : tipoLancamento,
@@ -75,7 +100,7 @@ export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento 
       valor: valorFinal,
       status: concluido ? "concluido" : "em_aberto",
       categoria: categoria,
-      contato: contato || "Não identificado",
+      contato: contato ? (contatoMapValueToLabel[contato] || contato) : "Não identificado",
     };
 
     // Adicionar campos específicos por tipo

@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:open": "vite --open --host",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:open": "vite preview --open --host"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

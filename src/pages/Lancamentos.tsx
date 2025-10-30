@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,6 +86,8 @@ const mockLancamentos: Lancamento[] = [
 ];
 
 const Lancamentos = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -102,7 +105,7 @@ const Lancamentos = () => {
     status: "todos",
     conciliacao: "todos",
   });
-  const [dateRange, setDateRange] = useState("01/10/2025 à 31/10/2025");
+  const [dateRange, setDateRange] = useState("");
 
   const filterChips = [
     { id: "entradas", label: "Entradas" },
@@ -125,7 +128,7 @@ const Lancamentos = () => {
   const toggleFilter = (filterId: string) => {
     setActiveFilters(prev => {
       const isActive = prev.includes(filterId);
-      const newFilters = isActive
+      let newFilters = isActive
         ? prev.filter(id => id !== filterId)
         : [...prev, filterId];
       
@@ -140,6 +143,48 @@ const Lancamentos = () => {
         newAdvancedFilters.status = isActive ? "todos" : "em_aberto";
       } else if (filterId === "concluidos") {
         newAdvancedFilters.status = isActive ? "todos" : "concluidos";
+      } else if (["hoje", "essa_semana", "esse_mes"].includes(filterId)) {
+        // Região exclusiva entre rápido de datas
+        const dateQuick = ["hoje", "essa_semana", "esse_mes"] as const;
+        if (!isActive) {
+          newFilters = [...prev.filter(id => !dateQuick.includes(id as any)), filterId];
+        }
+
+        const now = new Date();
+        let start: Date | undefined;
+        let end: Date | undefined;
+
+        if (isActive) {
+          start = undefined;
+          end = undefined;
+        } else if (filterId === "hoje") {
+          start = new Date(now);
+          end = new Date(now);
+        } else if (filterId === "essa_semana") {
+          const day = now.getDay(); // 0(dom) - 6(sab)
+          const diffToMonday = (day + 6) % 7; // seg=0
+          start = new Date(now);
+          start.setDate(now.getDate() - diffToMonday);
+          end = new Date(start);
+          end.setDate(start.getDate() + 6);
+        } else if (filterId === "esse_mes") {
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        }
+
+        if (start && end) {
+          start.setHours(0, 0, 0, 0);
+          end.setHours(23, 59, 59, 999);
+          newAdvancedFilters.dataVencimentoInicio = start;
+          newAdvancedFilters.dataVencimentoFim = end;
+          const inicio = start.toLocaleDateString("pt-BR");
+          const fim = end.toLocaleDateString("pt-BR");
+          setDateRange(`${inicio} à ${fim}`);
+        } else {
+          delete newAdvancedFilters.dataVencimentoInicio;
+          delete newAdvancedFilters.dataVencimentoFim;
+          setDateRange("");
+        }
       }
       
       setAdvancedFilters(newAdvancedFilters);
@@ -154,13 +199,16 @@ const Lancamentos = () => {
   const clearAllFilters = () => {
     setActiveFilters([]);
     setActiveSegment("todos");
-    setAdvancedFilters({
-      direcao: "todos",
-      status: "todos",
-      conciliacao: "todos",
+    setAdvancedFilters(prev => {
+      const next = { ...prev, direcao: "todos", status: "todos", conciliacao: "todos" } as FilterState;
+      delete next.dataVencimentoInicio;
+      delete next.dataVencimentoFim;
+      delete next.categoria;
+      delete next.contato;
+      return next;
     });
     setSearchTerm("");
-    setDateRange("01/10/2025 à 31/10/2025");
+    setDateRange("");
   };
 
   const handleSelectItem = (itemId: string) => {
@@ -224,12 +272,14 @@ const Lancamentos = () => {
   };
 
   const clearDateRange = () => {
-    setAdvancedFilters({
-      direcao: "todos",
-      status: "todos",
-      conciliacao: "todos",
+    setAdvancedFilters(prev => {
+      const next = { ...prev } as FilterState;
+      delete next.dataVencimentoInicio;
+      delete next.dataVencimentoFim;
+      return next;
     });
-    setDateRange("01/10/2025 à 31/10/2025");
+    setActiveFilters(prev => prev.filter(id => !["hoje", "essa_semana", "esse_mes"].includes(id)));
+    setDateRange("");
   };
 
   const exportToCSV = () => {
@@ -316,15 +366,16 @@ const Lancamentos = () => {
       if (item.contato !== contatoMap[advancedFilters.contato]) return false;
     }
 
-    // Date range filter (advanced only)
-    if (advancedFilters.dataVencimentoInicio && advancedFilters.dataVencimentoFim) {
-      const itemDate = new Date(item.vencimento.split("/").reverse().join("-"));
-      const startDate = new Date(advancedFilters.dataVencimentoInicio);
-      const endDate = new Date(advancedFilters.dataVencimentoFim);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
-      
-      if (itemDate < startDate || itemDate > endDate) return false;
+    // Date range filter (advanced only) — permite início OU fim
+    if (advancedFilters.dataVencimentoInicio || advancedFilters.dataVencimentoFim) {
+      const [dStr, mStr, yStr] = item.vencimento.split("/");
+      const itemDate = new Date(Number(yStr), Number(mStr) - 1, Number(dStr));
+      const startDate = advancedFilters.dataVencimentoInicio ? new Date(advancedFilters.dataVencimentoInicio) : null;
+      const endDate = advancedFilters.dataVencimentoFim ? new Date(advancedFilters.dataVencimentoFim) : null;
+      if (startDate) startDate.setHours(0, 0, 0, 0);
+      if (endDate) endDate.setHours(23, 59, 59, 999);
+      if (startDate && itemDate < startDate) return false;
+      if (endDate && itemDate > endDate) return false;
     }
 
     // Segment filter (todos/lançamentos/recorrente/parcelado)
@@ -336,9 +387,6 @@ const Lancamentos = () => {
 
     // Quick filters (atrasados and date-based)
     if (activeFilters.includes("atrasados") && !item.atrasado) return false;
-    
-    // Date quick filters - implement logic when needed
-    // TODO: Implement "hoje", "essa_semana", "esse_mes" filters
 
     // Search filter
     if (searchTerm) {
@@ -355,8 +403,10 @@ const Lancamentos = () => {
     if (!sortColumn) return 0;
     
     if (sortColumn === "vencimento") {
-      const dateA = new Date(a.vencimento.split("/").reverse().join("-"));
-      const dateB = new Date(b.vencimento.split("/").reverse().join("-"));
+      const [da, ma, ya] = a.vencimento.split("/");
+      const [db, mb, yb] = b.vencimento.split("/");
+      const dateA = new Date(Number(ya), Number(ma) - 1, Number(da));
+      const dateB = new Date(Number(yb), Number(mb) - 1, Number(db));
       return sortDirection === "asc" ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
     }
     
@@ -366,6 +416,86 @@ const Lancamentos = () => {
     
     return 0;
   });
+
+  // URL <-> State sync
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get("q") || "";
+    const seg = params.get("seg") || "todos";
+    const dir = params.get("dir") as FilterState["direcao"] | null;
+    const st = params.get("st") as FilterState["status"] | null;
+    const cat = params.get("cat") || undefined;
+    const contato = params.get("cont") || undefined;
+    const from = params.get("from");
+    const to = params.get("to");
+    const atras = params.get("atras") === "1";
+    const quick = params.get("quick"); // hoje|essa_semana|esse_mes
+
+    const nextFilters: FilterState = {
+      direcao: dir || "todos",
+      status: st || "todos",
+      conciliacao: "todos",
+      categoria: cat,
+      contato,
+    };
+
+    if (from && to) {
+      const [df, mf, yf] = from.split("-").map(Number);
+      const [dt, mt, yt] = to.split("-").map(Number);
+      const start = new Date(yf!, (mf! - 1), df!);
+      const end = new Date(yt!, (mt! - 1), dt!);
+      nextFilters.dataVencimentoInicio = start;
+      nextFilters.dataVencimentoFim = end;
+      setDateRange(`${start.toLocaleDateString("pt-BR")} à ${end.toLocaleDateString("pt-BR")}`);
+    }
+
+    setAdvancedFilters(prev => ({ ...prev, ...nextFilters }));
+    setSearchTerm(q);
+    setActiveSegment(seg);
+
+    const quickList: string[] = [];
+    if (nextFilters.direcao === "entradas") quickList.push("entradas");
+    if (nextFilters.direcao === "saidas") quickList.push("saidas");
+    if (nextFilters.status === "em_aberto") quickList.push("em_aberto");
+    if (nextFilters.status === "concluidos") quickList.push("concluidos");
+    if (atras) quickList.push("atrasados");
+    if (quick && ["hoje","essa_semana","esse_mes"].includes(quick)) quickList.push(quick);
+    setActiveFilters(quickList);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (searchTerm) params.set("q", searchTerm); else params.delete("q");
+    if (activeSegment && activeSegment !== "todos") params.set("seg", activeSegment); else params.delete("seg");
+
+    // Advanced filters
+    if (advancedFilters.direcao && advancedFilters.direcao !== "todos") params.set("dir", advancedFilters.direcao); else params.delete("dir");
+    if (advancedFilters.status && advancedFilters.status !== "todos") params.set("st", advancedFilters.status); else params.delete("st");
+    if (advancedFilters.categoria && advancedFilters.categoria !== "__all__") params.set("cat", advancedFilters.categoria); else params.delete("cat");
+    if (advancedFilters.contato) params.set("cont", advancedFilters.contato!); else params.delete("cont");
+    if (advancedFilters.dataVencimentoInicio && advancedFilters.dataVencimentoFim) {
+      const s = advancedFilters.dataVencimentoInicio;
+      const e = advancedFilters.dataVencimentoFim;
+      const toIso = (d: Date) => `${d.getDate().toString().padStart(2,"0")}-${(d.getMonth()+1).toString().padStart(2,"0")}-${d.getFullYear()}`;
+      params.set("from", toIso(s));
+      params.set("to", toIso(e));
+    } else {
+      params.delete("from");
+      params.delete("to");
+    }
+
+    // Quick flags
+    params.set("atras", activeFilters.includes("atrasados") ? "1" : "0");
+    const quick = ["hoje","essa_semana","esse_mes"].find(q => activeFilters.includes(q));
+    if (quick) params.set("quick", quick); else params.delete("quick");
+
+    const newSearch = params.toString();
+    const current = location.search.replace(/^\?/, "");
+    if (newSearch !== current) {
+      navigate({ search: newSearch ? `?${newSearch}` : "" }, { replace: true });
+    }
+  }, [searchTerm, activeSegment, activeFilters, advancedFilters, location.search, navigate]);
 
   const getTipoIcon = (tipo: LancamentoType) => {
     switch (tipo) {
@@ -539,7 +669,15 @@ const Lancamentos = () => {
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Filtros</span>
-              <Badge variant="outline" className="text-xs">01/09/2025 à 30/09/2025</Badge>
+              {(advancedFilters.dataVencimentoInicio || advancedFilters.dataVencimentoFim) && (
+                <Badge variant="outline" className="text-xs">
+                  {advancedFilters.dataVencimentoInicio && advancedFilters.dataVencimentoFim
+                    ? `${advancedFilters.dataVencimentoInicio.toLocaleDateString("pt-BR")} à ${advancedFilters.dataVencimentoFim.toLocaleDateString("pt-BR")}`
+                    : advancedFilters.dataVencimentoInicio
+                    ? `≥ ${advancedFilters.dataVencimentoInicio.toLocaleDateString("pt-BR")}`
+                    : `≤ ${advancedFilters.dataVencimentoFim!.toLocaleDateString("pt-BR")}`}
+                </Badge>
+              )}
               <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={clearAllFilters}>
                 Limpar todos
               </Button>
@@ -689,10 +827,18 @@ const Lancamentos = () => {
               Filtros
             </Button>
             
-            <Badge variant="outline" className="text-xs flex items-center gap-1 px-2 py-1">
-              {dateRange}
-              <X className="h-3 w-3 cursor-pointer hover:opacity-70" onClick={clearDateRange} />
-            </Badge>
+            {(advancedFilters.dataVencimentoInicio || advancedFilters.dataVencimentoFim) && (
+              <Badge variant="outline" className="text-xs flex items-center gap-1 px-2 py-1">
+                {dateRange || (
+                  advancedFilters.dataVencimentoInicio && advancedFilters.dataVencimentoFim
+                    ? `${advancedFilters.dataVencimentoInicio.toLocaleDateString("pt-BR")} à ${advancedFilters.dataVencimentoFim.toLocaleDateString("pt-BR")}`
+                    : advancedFilters.dataVencimentoInicio
+                    ? `≥ ${advancedFilters.dataVencimentoInicio.toLocaleDateString("pt-BR")}`
+                    : `≤ ${advancedFilters.dataVencimentoFim!.toLocaleDateString("pt-BR")}`
+                )}
+                <X className="h-3 w-3 cursor-pointer hover:opacity-70" onClick={clearDateRange} />
+              </Badge>
+            )}
             
             <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={clearAllFilters}>
               Limpar todos
