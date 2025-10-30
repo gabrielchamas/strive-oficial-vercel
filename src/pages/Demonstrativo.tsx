@@ -328,10 +328,10 @@ const Demonstrativo = () => {
 
         <div className="border rounded-lg overflow-auto">
           <div className="min-w-[1000px]">
-            <div className="grid" style={{ gridTemplateColumns: "380px repeat(12, 120px) 140px" }}>
+            <div className="grid" style={{ gridTemplateColumns: "380px repeat(12, 150px) 160px" }}>
               <div className="bg-muted/30 p-3 font-medium text-muted-foreground">&nbsp;</div>
-              {monthLabels.map((m) => (
-                <div key={m} className="bg-muted/30 p-3 text-sm font-medium text-muted-foreground text-right tabular-nums whitespace-nowrap">{m}</div>
+              {monthLabels.map((m, idx) => (
+                <div key={m} className={`p-3 text-sm font-medium text-muted-foreground text-right tabular-nums whitespace-nowrap ${idx % 2 === 0 ? "bg-muted/30" : "bg-background"}`}>{m}</div>
               ))}
               <div className="bg-muted/30 p-3 text-sm font-medium text-muted-foreground text-right tabular-nums whitespace-nowrap border-l">Total</div>
               {linhasPrincipais.map((linha, idx) => {
@@ -354,9 +354,9 @@ const Demonstrativo = () => {
                         </div>
                       </div>
                       {valores.map((v, i) => (
-                        <div key={linha.titulo+"-"+i} className={`p-3 text-right tabular-nums whitespace-nowrap ${v >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(v)}</div>
+                        <div key={linha.titulo+"-"+i} className={`p-3 text-right tabular-nums whitespace-nowrap ${i % 2 === 0 ? "bg-muted/30" : "bg-background"} ${v >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(v)}</div>
                       ))}
-                      <div className={`p-3 text-right tabular-nums whitespace-nowrap border-l font-medium ${valores.reduce((a, b) => a + b, 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      <div className={`p-3 text-right tabular-nums whitespace-nowrap border-l font-medium bg-muted/30 ${valores.reduce((a, b) => a + b, 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
                         {formatCurrency(valores.reduce((a, b) => a + b, 0))}
                       </div>
                       {hasPercent && isExpanded && (
@@ -366,10 +366,10 @@ const Demonstrativo = () => {
                             const base = receitas[i] || 0;
                             const pct = base !== 0 ? v / base : 0;
                             return (
-                              <div key={linha.titulo+"-%-"+i} className="p-3 text-right tabular-nums whitespace-nowrap text-muted-foreground">{formatPercent(pct)}</div>
+                              <div key={linha.titulo+"-%-"+i} className={`p-3 text-right tabular-nums whitespace-nowrap text-muted-foreground ${i % 2 === 0 ? "bg-muted/30" : "bg-background"}`}>{formatPercent(pct)}</div>
                             );
                           })}
-                          <div className="p-3 text-right tabular-nums whitespace-nowrap text-muted-foreground border-l">
+                          <div className="p-3 text-right tabular-nums whitespace-nowrap text-muted-foreground border-l bg-muted/30">
                             {(() => {
                               const totalValores = valores.reduce((a, b) => a + b, 0);
                               const totalReceitas = receitas.reduce((a, b) => a + b, 0);
@@ -399,9 +399,9 @@ const Demonstrativo = () => {
                       </div>
                     </div>
                     {valoresGrupo.map((v, i) => (
-                      <div key={linha.titulo+"-"+i} className="p-3 text-right tabular-nums whitespace-nowrap">{formatCurrency(v)}</div>
+                      <div key={linha.titulo+"-"+i} className={`p-3 text-right tabular-nums whitespace-nowrap ${i % 2 === 0 ? "bg-muted/30" : "bg-background"}`}>{formatCurrency(v)}</div>
                     ))}
-                    <div className="p-3 text-right tabular-nums whitespace-nowrap border-l font-medium">
+                    <div className="p-3 text-right tabular-nums whitespace-nowrap border-l font-medium bg-muted/30">
                       {formatCurrency(valoresGrupo.reduce((a, b) => a + b, 0))}
                     </div>
 
@@ -411,9 +411,9 @@ const Demonstrativo = () => {
                         <>
                           <div key={linha.titulo+sub} className="p-3 pl-8 text-sm text-muted-foreground">{sub}</div>
                           {valoresSub.map((v, i) => (
-                            <div key={linha.titulo+sub+"-"+i} className="p-3 text-right text-muted-foreground tabular-nums whitespace-nowrap">{formatCurrency(v || 0)}</div>
+                            <div key={linha.titulo+sub+"-"+i} className={`p-3 text-right text-muted-foreground tabular-nums whitespace-nowrap ${i % 2 === 0 ? "bg-muted/30" : "bg-background"}`}>{formatCurrency(v || 0)}</div>
                           ))}
-                          <div className="p-3 text-right text-muted-foreground tabular-nums whitespace-nowrap border-l">
+                          <div className="p-3 text-right text-muted-foreground tabular-nums whitespace-nowrap border-l bg-muted/30">
                             {formatCurrency(valoresSub.reduce((a, b) => a + b, 0))}
                           </div>
                         </>
