@@ -1,0 +1,1006 @@
+import { useState } from "react";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  RefreshCw, Plus, Search, MoreHorizontal, AlertTriangle, 
+  Edit, Copy, Archive, ExternalLink, Filter, X, ChevronLeft, ChevronRight,
+  ArrowUpDown, ArrowUp, ArrowDown, User, Calendar, DollarSign, Tag, FileText, File
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { CreateLancamentoDialog } from "@/components/CreateLancamentoDialog";
+import { FilterLancamentosDialog, FilterState } from "@/components/FilterLancamentosDialog";
+import { getCategoryLabel } from "@/types/categories";
+
+type LancamentoType = "entrada" | "saida" | "recorrente" | "parcelado";
+type StatusType = "em_aberto" | "concluido";
+
+interface Lancamento {
+  id: string;
+  tipo: LancamentoType;
+  descricao: string;
+  vencimento: string;
+  valor: number;
+  status: StatusType;
+  categoria: string;
+  contato: string;
+  parcela?: string;
+  atrasado?: boolean;
+}
+
+const mockLancamentos: Lancamento[] = [
+  {
+    id: "1",
+    tipo: "saida",
+    descricao: "Netflix",
+    vencimento: "01/09/2025",
+    valor: -39.90,
+    status: "em_aberto",
+    categoria: "software_ferramentas",
+    contato: "Não identificado",
+    atrasado: true,
+  },
+  {
+    id: "2",
+    tipo: "parcelado",
+    descricao: "iPhone - 1ª parcela",
+    vencimento: "01/09/2025",
+    valor: -416.66,
+    status: "em_aberto",
+    categoria: "aquisicao_tecnologias",
+    contato: "Não identificado",
+    parcela: "1/12",
+    atrasado: true,
+  },
+  {
+    id: "3",
+    tipo: "entrada",
+    descricao: "Cliente X - Serviço",
+    vencimento: "10/09/2025",
+    valor: 2100.00,
+    status: "concluido",
+    categoria: "venda_servicos",
+    contato: "Cliente X",
+  },
+  {
+    id: "4",
+    tipo: "recorrente",
+    descricao: "Assinatura Y",
+    vencimento: "15/09/2025",
+    valor: -29.90,
+    status: "em_aberto",
+    categoria: "software_ferramentas",
+    contato: "Não identificado",
+  },
+];
+
+const Lancamentos = () => {
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [activeSegment, setActiveSegment] = useState("todos");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedLancamento, setSelectedLancamento] = useState<Lancamento | null>(null);
+  const [sortColumn, setSortColumn] = useState<"vencimento" | "valor" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [lancamentos, setLancamentos] = useState<Lancamento[]>(mockLancamentos);
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<FilterState>({
+    direcao: "todos",
+    status: "todos",
+    conciliacao: "todos",
+  });
+  const [dateRange, setDateRange] = useState("01/10/2025 à 31/10/2025");
+
+  const filterChips = [
+    { id: "entradas", label: "Entradas" },
+    { id: "saidas", label: "Saídas" },
+    { id: "em_aberto", label: "Em aberto" },
+    { id: "concluidos", label: "Concluídos" },
+    { id: "hoje", label: "Hoje" },
+    { id: "essa_semana", label: "Essa semana" },
+    { id: "esse_mes", label: "Esse mês" },
+    { id: "atrasados", label: "Atrasados" },
+  ];
+
+  const segmentChips = [
+    { id: "todos", label: "Todos" },
+    { id: "lancamentos", label: "Lançamentos" },
+    { id: "recorrente", label: "Recorrências" },
+    { id: "parcelado", label: "Parcelamentos" },
+  ];
+
+  const toggleFilter = (filterId: string) => {
+    setActiveFilters(prev => {
+      const isActive = prev.includes(filterId);
+      const newFilters = isActive
+        ? prev.filter(id => id !== filterId)
+        : [...prev, filterId];
+      
+      // Sync with advanced filters
+      const newAdvancedFilters = { ...advancedFilters };
+      
+      if (filterId === "entradas") {
+        newAdvancedFilters.direcao = isActive ? "todos" : "entradas";
+      } else if (filterId === "saidas") {
+        newAdvancedFilters.direcao = isActive ? "todos" : "saidas";
+      } else if (filterId === "em_aberto") {
+        newAdvancedFilters.status = isActive ? "todos" : "em_aberto";
+      } else if (filterId === "concluidos") {
+        newAdvancedFilters.status = isActive ? "todos" : "concluidos";
+      }
+      
+      setAdvancedFilters(newAdvancedFilters);
+      return newFilters;
+    });
+  };
+
+  const toggleSegment = (segmentId: string) => {
+    setActiveSegment(segmentId);
+  };
+
+  const clearAllFilters = () => {
+    setActiveFilters([]);
+    setActiveSegment("todos");
+    setAdvancedFilters({
+      direcao: "todos",
+      status: "todos",
+      conciliacao: "todos",
+    });
+    setSearchTerm("");
+    setDateRange("01/10/2025 à 31/10/2025");
+  };
+
+  const handleSelectItem = (itemId: string) => {
+    setSelectedItems(prev =>
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const allIds = filteredLancamentos.map(item => item.id);
+    setSelectedItems(prev =>
+      prev.length === allIds.length ? [] : allIds
+    );
+  };
+
+  const handleSort = (column: "vencimento" | "valor") => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const openDetails = (lancamento: Lancamento) => {
+    setSelectedLancamento(lancamento);
+    setDetailsOpen(true);
+  };
+
+  const handleCreateLancamento = (novoLancamento: Lancamento) => {
+    setLancamentos(prev => [novoLancamento, ...prev]);
+  };
+
+  const handleApplyFilters = (filters: FilterState) => {
+    setAdvancedFilters(filters);
+    
+    // Sync quick filters with advanced filters
+    const newActiveFilters: string[] = [];
+    
+    if (filters.direcao === "entradas") {
+      newActiveFilters.push("entradas");
+    } else if (filters.direcao === "saidas") {
+      newActiveFilters.push("saidas");
+    }
+    
+    if (filters.status === "em_aberto") {
+      newActiveFilters.push("em_aberto");
+    } else if (filters.status === "concluidos") {
+      newActiveFilters.push("concluidos");
+    }
+    
+    setActiveFilters(newActiveFilters);
+    
+    if (filters.dataVencimentoInicio && filters.dataVencimentoFim) {
+      const inicio = filters.dataVencimentoInicio.toLocaleDateString("pt-BR");
+      const fim = filters.dataVencimentoFim.toLocaleDateString("pt-BR");
+      setDateRange(`${inicio} à ${fim}`);
+    }
+  };
+
+  const clearDateRange = () => {
+    setAdvancedFilters({
+      direcao: "todos",
+      status: "todos",
+      conciliacao: "todos",
+    });
+    setDateRange("01/10/2025 à 31/10/2025");
+  };
+
+  const exportToCSV = () => {
+    const headers = ["Tipo", "Descrição", "Vencimento", "Valor", "Status", "Categoria", "Contato"];
+    const csvData = filteredLancamentos.map(item => [
+      getTipoLabel(item.tipo),
+      item.descricao + (item.parcela ? ` (${item.parcela})` : ""),
+      item.vencimento,
+      formatCurrency(item.valor),
+      item.status === "em_aberto" ? "Em aberto" : "Concluído",
+      getCategoryLabel(item.categoria, item.tipo === "entrada" ? "entrada" : "saida"),
+      item.contato,
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `lancamentos_${dateRange.replace(/\s/g, "_")}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success("Lançamentos exportados em CSV com sucesso!");
+  };
+
+  const exportToExcel = () => {
+    const headers = ["Tipo", "Descrição", "Vencimento", "Valor", "Status", "Categoria", "Contato"];
+    const csvData = filteredLancamentos.map(item => [
+      getTipoLabel(item.tipo),
+      item.descricao + (item.parcela ? ` (${item.parcela})` : ""),
+      item.vencimento,
+      item.valor,
+      item.status === "em_aberto" ? "Em aberto" : "Concluído",
+      getCategoryLabel(item.categoria, item.tipo === "entrada" ? "entrada" : "saida"),
+      item.contato,
+    ]);
+
+    const csvContent = [
+      headers.join("\t"),
+      ...csvData.map(row => row.join("\t"))
+    ].join("\n");
+
+    const blob = new Blob(["\ufeff" + csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `lancamentos_${dateRange.replace(/\s/g, "_")}.xls`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success("Lançamentos exportados em Excel com sucesso!");
+  };
+
+  const filteredLancamentos = lancamentos.filter(item => {
+    // Direção (entrada/saída) - unified from both quick and advanced filters
+    if (advancedFilters.direcao === "entradas" && item.tipo !== "entrada") return false;
+    if (advancedFilters.direcao === "saidas" && !["saida", "parcelado", "recorrente"].includes(item.tipo)) return false;
+
+    // Status (em aberto/concluído) - unified from both quick and advanced filters
+    if (advancedFilters.status === "em_aberto" && item.status !== "em_aberto") return false;
+    if (advancedFilters.status === "concluidos" && item.status !== "concluido") return false;
+
+    // Category filter (advanced only)
+    if (advancedFilters.categoria && advancedFilters.categoria !== "__all__") {
+      if (item.categoria !== advancedFilters.categoria) return false;
+    }
+
+    // Contact filter (advanced only)
+    if (advancedFilters.contato) {
+      const contatoMap: Record<string, string> = {
+        "cliente-x": "Cliente X",
+        "fornecedor-y": "Fornecedor Y",
+        "nao-identificado": "Não identificado",
+      };
+      if (item.contato !== contatoMap[advancedFilters.contato]) return false;
+    }
+
+    // Date range filter (advanced only)
+    if (advancedFilters.dataVencimentoInicio && advancedFilters.dataVencimentoFim) {
+      const itemDate = new Date(item.vencimento.split("/").reverse().join("-"));
+      const startDate = new Date(advancedFilters.dataVencimentoInicio);
+      const endDate = new Date(advancedFilters.dataVencimentoFim);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      
+      if (itemDate < startDate || itemDate > endDate) return false;
+    }
+
+    // Segment filter (todos/lançamentos/recorrente/parcelado)
+    if (activeSegment !== "todos") {
+      if (activeSegment === "lancamentos" && ["recorrente", "parcelado"].includes(item.tipo)) return false;
+      if (activeSegment === "recorrente" && item.tipo !== "recorrente") return false;
+      if (activeSegment === "parcelado" && item.tipo !== "parcelado") return false;
+    }
+
+    // Quick filters (atrasados and date-based)
+    if (activeFilters.includes("atrasados") && !item.atrasado) return false;
+    
+    // Date quick filters - implement logic when needed
+    // TODO: Implement "hoje", "essa_semana", "esse_mes" filters
+
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        item.descricao.toLowerCase().includes(searchLower) ||
+        item.categoria.toLowerCase().includes(searchLower) ||
+        item.contato.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return true;
+  }).sort((a, b) => {
+    if (!sortColumn) return 0;
+    
+    if (sortColumn === "vencimento") {
+      const dateA = new Date(a.vencimento.split("/").reverse().join("-"));
+      const dateB = new Date(b.vencimento.split("/").reverse().join("-"));
+      return sortDirection === "asc" ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+    }
+    
+    if (sortColumn === "valor") {
+      return sortDirection === "asc" ? a.valor - b.valor : b.valor - a.valor;
+    }
+    
+    return 0;
+  });
+
+  const getTipoIcon = (tipo: LancamentoType) => {
+    switch (tipo) {
+      case "entrada":
+        return <div className="w-2 h-2 rounded-full bg-green-500" />;
+      case "saida":
+        return <div className="w-2 h-2 rounded-full bg-red-500" />;
+      case "recorrente":
+        return <div className="w-2 h-2 rounded-full bg-blue-500" />;
+      case "parcelado":
+        return <div className="w-2 h-2 rounded-full bg-purple-500" />;
+    }
+  };
+
+  const getTipoLabel = (tipo: LancamentoType) => {
+    switch (tipo) {
+      case "entrada":
+        return "Entrada";
+      case "saida":
+        return "Saída";
+      case "recorrente":
+        return "Recorrente";
+      case "parcelado":
+        return "Parcelado";
+      default:
+        return "Padrão";
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(Math.abs(value));
+  };
+
+  const getStatusBadge = (status: StatusType) => {
+    return status === "em_aberto" ? (
+      <Badge variant="outline" className="text-yellow-600 border-yellow-600/20 bg-yellow-600/10">
+        Em aberto
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="text-green-600 border-green-600/20 bg-green-600/10">
+        Concluído
+      </Badge>
+    );
+  };
+
+  const bulkActions = [
+    { id: "archive", label: "Arquivar", icon: Archive },
+    { id: "mark_paid", label: "Marcar como pago", icon: DollarSign },
+    { id: "tag", label: "Aplicar tag", icon: Tag },
+    { id: "export", label: "Exportar CSV", icon: ExternalLink },
+  ];
+
+  const handleBulkAction = (actionId: string) => {
+    toast.success(`Ação "${actionId}" executada para ${selectedItems.length} itens (mock)`);
+    setSelectedItems([]);
+  };
+
+  const resumoFinanceiro = {
+    entradas: filteredLancamentos.filter(item => item.valor > 0).reduce((sum, item) => sum + item.valor, 0),
+    saidas: filteredLancamentos.filter(item => item.valor < 0).reduce((sum, item) => sum + Math.abs(item.valor), 0),
+  };
+  
+  const resultado = resumoFinanceiro.entradas - resumoFinanceiro.saidas;
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          {/* Header skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-36" />
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+          </div>
+
+          {/* Filters skeleton */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-6 w-12" />
+              <Skeleton className="h-8 w-40" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-20" />
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-24" />
+              ))}
+            </div>
+          </div>
+
+          {/* Table skeleton */}
+          <div className="border rounded-lg">
+            <div className="border-b p-4">
+              <div className="flex items-center gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-4 w-20" />
+                ))}
+              </div>
+            </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="border-b last:border-b-0 p-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (filteredLancamentos.length === 0 && (activeFilters.length > 0 || activeSegment !== "todos" || searchTerm)) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Início › Financeiro › Lançamentos</p>
+              <h1 className="text-2xl font-semibold">Lançamentos</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+              <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar lançamento
+              </Button>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 w-64"
+                />
+              </div>
+              <Button variant="outline" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filtros</span>
+              <Badge variant="outline" className="text-xs">01/09/2025 à 30/09/2025</Badge>
+              <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={clearAllFilters}>
+                Limpar todos
+              </Button>
+            </div>
+            
+          <div className="flex items-center gap-2 flex-wrap">
+            {filterChips.map((chip) => (
+              <Button
+                key={chip.id}
+                variant={activeFilters.includes(chip.id) ? "secondary" : "outline"}
+                size="sm"
+                className="h-9 min-w-[100px]"
+                onClick={() => toggleFilter(chip.id)}
+              >
+                {chip.label}
+              </Button>
+            ))}
+          </div>
+
+            <div className="flex items-center gap-2">
+              {segmentChips.map((segment) => (
+                <Button
+                  key={segment.id}
+                  variant={activeSegment === segment.id ? "secondary" : "outline"}
+                  size="sm"
+                  className="h-8"
+                  onClick={() => toggleSegment(segment.id)}
+                >
+                  {segment.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* No Results */}
+          <div className="border rounded-lg p-12">
+            <div className="text-center">
+              <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum lançamento corresponde aos filtros selecionados</h3>
+              <p className="text-muted-foreground mb-4">Tente ajustar os filtros ou limpar a busca para ver mais resultados.</p>
+              <Button onClick={clearAllFilters}>Limpar filtros</Button>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (filteredLancamentos.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Início › Financeiro › Lançamentos</p>
+              <h1 className="text-2xl font-semibold">Lançamentos</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+              <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar lançamento
+              </Button>
+            </div>
+          </div>
+
+          {/* Empty State */}
+          <div className="border rounded-lg p-12">
+            <div className="text-center">
+              <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum lançamento encontrado</h3>
+              <p className="text-muted-foreground mb-4">Comece criando seu primeiro lançamento financeiro.</p>
+              <div className="flex items-center justify-center gap-3">
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar lançamento
+                </Button>
+                <Button variant="outline">Como funciona</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Início › Financeiro › Lançamentos</p>
+            <h1 className="text-2xl font-semibold">Lançamentos</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => setLoading(true)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
+            </Button>
+            <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Criar lançamento
+            </Button>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 w-64"
+              />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-background">
+                <DropdownMenuItem onClick={exportToCSV}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Exportar CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToExcel}>
+                  <File className="h-4 w-4 mr-2" />
+                  Exportar Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Filters Bar */}
+        <div className="flex items-center justify-between gap-4 pb-4 border-b">
+          <div className="flex items-center gap-2 flex-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFilterDialogOpen(true)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+            </Button>
+            
+            <Badge variant="outline" className="text-xs flex items-center gap-1 px-2 py-1">
+              {dateRange}
+              <X className="h-3 w-3 cursor-pointer hover:opacity-70" onClick={clearDateRange} />
+            </Badge>
+            
+            <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={clearAllFilters}>
+              Limpar todos
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {filterChips.map((chip) => (
+            <Button
+              key={chip.id}
+              variant={activeFilters.includes(chip.id) ? "secondary" : "outline"}
+              size="sm"
+              className="h-9 min-w-[100px]"
+              onClick={() => toggleFilter(chip.id)}
+            >
+              {chip.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Bulk Actions */}
+        {selectedItems.length > 0 && (
+          <div className="bg-muted/50 border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {selectedItems.length} selecionados
+              </span>
+              <div className="flex items-center gap-2">
+                {bulkActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <Button
+                      key={action.id}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleBulkAction(action.id)}
+                    >
+                      <Icon className="h-4 w-4 mr-2" />
+                      {action.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="border rounded-lg">
+          {/* Table Header */}
+          <div className="border-b bg-muted/30">
+            <div className="flex items-center h-12 px-4 text-sm font-medium text-muted-foreground gap-3">
+              <div className="w-10 flex items-center justify-center flex-shrink-0">
+                <Checkbox
+                  checked={selectedItems.length === filteredLancamentos.length}
+                  onCheckedChange={handleSelectAll}
+                />
+              </div>
+              <div className="w-24 flex-shrink-0">Tipo</div>
+              <div className="flex-1 min-w-[180px]">Descrição</div>
+              <div className="w-28 flex-shrink-0 flex items-center gap-1 cursor-pointer" onClick={() => handleSort("vencimento")}>
+                Vencimento
+                {sortColumn === "vencimento" && (
+                  sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                )}
+                {sortColumn !== "vencimento" && <ArrowUpDown className="h-3 w-3" />}
+              </div>
+              <div className="w-32 flex-shrink-0 text-right flex items-center justify-end gap-1 cursor-pointer" onClick={() => handleSort("valor")}>
+                Valor
+                {sortColumn === "valor" && (
+                  sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                )}
+                {sortColumn !== "valor" && <ArrowUpDown className="h-3 w-3" />}
+              </div>
+              <div className="w-28 flex-shrink-0">Status</div>
+              <div className="w-36 flex-shrink-0">Categoria</div>
+              <div className="w-32 flex-shrink-0">Contato</div>
+              <div className="w-20 flex-shrink-0"></div>
+            </div>
+          </div>
+
+          {/* Table Body */}
+          <div>
+            {filteredLancamentos.map((item, index) => (
+              <div
+                key={item.id}
+                className="flex items-center h-14 px-4 border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors gap-3"
+                onClick={() => openDetails(item)}
+              >
+                <div className="w-10 flex items-center justify-center flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedItems.includes(item.id)}
+                    onCheckedChange={() => handleSelectItem(item.id)}
+                  />
+                </div>
+                <div className="w-24 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    {getTipoIcon(item.tipo)}
+                    <span className="text-sm">{getTipoLabel(item.tipo)}</span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-[180px]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium truncate">{item.descricao}</span>
+                    {item.parcela && (
+                      <Badge variant="outline" className="text-xs flex-shrink-0">{item.parcela}</Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="w-28 flex-shrink-0">
+                  <div className="flex items-center gap-1 text-sm">
+                    {item.atrasado && <AlertTriangle className="h-3 w-3 text-yellow-500 flex-shrink-0" />}
+                    <span className={item.atrasado ? "text-yellow-600" : ""}>{item.vencimento}</span>
+                  </div>
+                </div>
+                <div className="w-32 flex-shrink-0 text-right">
+                  <span className={`text-sm font-medium ${item.valor > 0 ? "text-green-600" : "text-red-600"}`}>
+                    {item.valor < 0 ? "- " : "+ "}{formatCurrency(item.valor)}
+                  </span>
+                </div>
+                <div className="w-28 flex-shrink-0">
+                  {getStatusBadge(item.status)}
+                </div>
+                <div className="w-36 flex-shrink-0">
+                  <span className="text-sm text-muted-foreground truncate block">
+                    {getCategoryLabel(item.categoria, item.tipo === "entrada" ? "entrada" : "saida")}
+                  </span>
+                </div>
+                <div className="w-32 flex-shrink-0">
+                  <div className="flex items-center gap-1">
+                    <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground truncate">{item.contato}</span>
+                  </div>
+                </div>
+                <div className="w-20 flex-shrink-0 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Archive className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {filteredLancamentos.length} / {filteredLancamentos.length}
+          </div>
+          
+          {/* Financial Summary */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-2">
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Entradas</span>
+                <div className="font-medium text-green-600">
+                  {formatCurrency(resumoFinanceiro.entradas)}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-2">
+              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Saídas</span>
+                <div className="font-medium text-red-600">
+                  {formatCurrency(resumoFinanceiro.saidas)}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-2">
+              <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Resultado</span>
+                <div className={`font-medium ${resultado >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  {formatCurrency(resultado)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Details Sheet */}
+        <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <SheetContent className="w-96">
+            {selectedLancamento && (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    {selectedLancamento.descricao}
+                    {getStatusBadge(selectedLancamento.status)}
+                  </SheetTitle>
+                </SheetHeader>
+                
+                <div className="space-y-6 mt-6">
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button size="sm" variant="outline">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicar
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Criar cobrança
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      <Archive className="h-4 w-4 mr-2" />
+                      Arquivar
+                    </Button>
+                  </div>
+
+                  {/* Information */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Informações principais</h4>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-muted-foreground">Valor</label>
+                        <p className={`font-medium ${selectedLancamento.valor > 0 ? "text-green-600" : "text-red-600"}`}>
+                          {formatCurrency(selectedLancamento.valor)}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm text-muted-foreground">Vencimento</label>
+                        <p className="font-medium">{selectedLancamento.vencimento}</p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm text-muted-foreground">Tipo</label>
+                        <p className="font-medium capitalize">{selectedLancamento.tipo.replace("_", " ")}</p>
+                      </div>
+                      
+                      {selectedLancamento.parcela && (
+                        <div>
+                          <label className="text-sm text-muted-foreground">Parcela</label>
+                          <p className="font-medium">{selectedLancamento.parcela}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Category & Tags */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Categoria & Tags</h4>
+                    <div>
+                      <Badge variant="secondary">
+                        {getCategoryLabel(selectedLancamento.categoria, selectedLancamento.tipo === "entrada" ? "entrada" : "saida")}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Contact */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Contato</h4>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span>{selectedLancamento.contato}</span>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Notas</h4>
+                    <p className="text-sm text-muted-foreground">Nenhuma nota adicionada.</p>
+                  </div>
+
+                  {/* Attachments */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Anexos</h4>
+                    <p className="text-sm text-muted-foreground">Nenhum anexo adicionado.</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
+
+        {/* Create Lancamento Dialog */}
+        <CreateLancamentoDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onCreateLancamento={handleCreateLancamento}
+        />
+
+        {/* Filter Dialog */}
+        <FilterLancamentosDialog
+          open={filterDialogOpen}
+          onOpenChange={setFilterDialogOpen}
+          onApplyFilters={handleApplyFilters}
+        />
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default Lancamentos;
