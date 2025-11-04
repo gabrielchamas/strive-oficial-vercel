@@ -15,6 +15,7 @@ export interface Lancamento {
 }
 
 const clientes = ["TechCorp", "StartupXYZ", "EmpresaABC", "InovaçãoBR", "DigitalPlus", "CloudSys", "DataFlow", "NextGen", "SmartSol", "FutureTech"];
+const clientesAdicionais = ["InnovativeTech", "GlobalSolutions", "TechLeaders", "DigitalMinds", "FutureSystems", "SmartStart", "GlobalInnovations", "TechVision", "InnovativeSolutions", "DigitalLeaders"];
 const planos = { Starter: 490, Pro: 1490, Business: 2990, Enterprise: 4990 };
 
 function gerarLancamentos(): Lancamento[] {
@@ -32,34 +33,38 @@ function gerarLancamentos(): Lancamento[] {
     const diasNoMes = new Date(2025, mes, 0).getDate();
 
     // ===== RECEITAS OPERACIONAIS =====
-    // MRR recorrente (todos os meses, dia 5)
-    clientes.slice(0, 8).forEach((cliente, idx) => {
+    // MRR recorrente (todos os meses, dia 5) - AUMENTADO de 8 para 12 clientes
+    [...clientes.slice(0, 8), ...clientesAdicionais.slice(0, 4)].forEach((cliente, idx) => {
       const planoKeys = Object.keys(planos);
       const plano = planoKeys[idx % planoKeys.length] as keyof typeof planos;
+      // Meses mais avançados têm mais clientes Enterprise
+      const planoIndex = mes >= 6 ? Math.min(idx % planoKeys.length + 1, planoKeys.length - 1) : idx % planoKeys.length;
+      const planoFinal = planoKeys[planoIndex] as keyof typeof planos;
       lancamentos.push({
         id: createId(`rec-${mes}`),
         tipo: "recorrente",
-        descricao: `MRR - ${cliente} (Plano ${plano})`,
+        descricao: `MRR - ${cliente} (Plano ${planoFinal})`,
         vencimento: formatDate(5, mes),
-        valor: planos[plano],
+        valor: planos[planoFinal],
         status: "concluido",
         categoria: "venda_servicos",
         contato: cliente,
       });
     });
 
-    // Novos clientes (distribuídos ao longo do mês)
-    if (mes <= 6) {
-      // Primeiro semestre: mais novos clientes
-      for (let i = 0; i < 3; i++) {
-        const cliente = clientes[i % clientes.length];
-        const planoKeys = Object.keys(planos);
-        const plano = planoKeys[i % planoKeys.length] as keyof typeof planos;
+    // MRR adicional - mais clientes Enterprise (a partir do mês 2)
+    if (mes >= 2) {
+      for (let i = 0; i < 6; i++) {
+        const clienteIdx = (mes * 2 + i) % clientesAdicionais.length;
+        const cliente = clientesAdicionais[clienteIdx];
+        // Mais clientes Enterprise conforme avança o ano
+        const planoIdx = mes >= 6 ? 3 : (mes >= 4 ? 2 : 1);
+        const plano = Object.keys(planos)[planoIdx] as keyof typeof planos;
         lancamentos.push({
-          id: createId(`nov-${mes}`),
-          tipo: "entrada",
-          descricao: `Onboarding - ${cliente} (Plano ${plano})`,
-          vencimento: formatDate(10 + i * 5, mes),
+          id: createId(`rec2-${mes}-${i}`),
+          tipo: "recorrente",
+          descricao: `MRR - ${cliente} (Plano ${plano})`,
+          vencimento: formatDate(6 + i, mes),
           valor: planos[plano],
           status: "concluido",
           categoria: "venda_servicos",
@@ -68,33 +73,323 @@ function gerarLancamentos(): Lancamento[] {
       }
     }
 
-    // Upgrade de plano (aleatório, 1-2 por mês)
-    if (mes % 2 === 0) {
-      const cliente = clientes[mes % clientes.length];
+    // Novos clientes (distribuídos ao longo do mês) - AUMENTADO
+    // Primeiro semestre: 5 novos clientes por mês
+    // Segundo semestre: 4 novos clientes por mês
+    const novosClientesPorMes = mes <= 6 ? 5 : 4;
+    for (let i = 0; i < novosClientesPorMes; i++) {
+      const clienteIdx = (mes * novosClientesPorMes + i) % clientesAdicionais.length;
+      const cliente = clientesAdicionais[clienteIdx] || clientes[i % clientes.length];
+      const planoKeys = Object.keys(planos);
+      // Tendência de planos maiores ao longo do ano
+      const planoIdx = mes >= 6 ? Math.min(i % planoKeys.length + 1, planoKeys.length - 1) : i % planoKeys.length;
+      const plano = planoKeys[planoIdx] as keyof typeof planos;
       lancamentos.push({
-        id: createId(`upg-${mes}`),
+        id: createId(`nov-${mes}`),
         tipo: "entrada",
-        descricao: `Upgrade de plano - ${cliente}`,
-        vencimento: formatDate(15, mes),
-        valor: 1000 + mes * 100,
+        descricao: `Onboarding - ${cliente} (Plano ${plano})`,
+        vencimento: formatDate(8 + i * 4, mes),
+        valor: planos[plano],
         status: "concluido",
         categoria: "venda_servicos",
         contato: cliente,
       });
     }
 
-    // Serviços adicionais (consultoria, treinamento)
-    if (mes % 3 === 0) {
+    // Upgrade de plano - AUMENTADO para mais frequente
+    if (mes % 2 === 0 || mes % 3 === 0) {
+      const cliente = [...clientes, ...clientesAdicionais][mes % (clientes.length + clientesAdicionais.length)];
       lancamentos.push({
-        id: createId(`svc-${mes}`),
+        id: createId(`upg-${mes}`),
         tipo: "entrada",
-        descricao: `Serviço adicional - Treinamento (${clientes[mes % clientes.length]})`,
-        vencimento: formatDate(20, mes),
-        valor: 800 + mes * 50,
+        descricao: `Upgrade de plano - ${cliente}`,
+        vencimento: formatDate(12, mes),
+        valor: 1200 + mes * 150,
+        status: "concluido",
+        categoria: "venda_servicos",
+        contato: cliente,
+      });
+    }
+
+    // Upgrades adicionais mensais (a partir do mês 2)
+    if (mes >= 2) {
+      for (let i = 0; i < 3; i++) {
+        const cliente = clientes[(mes + i) % clientes.length];
+        lancamentos.push({
+          id: createId(`upg2-${mes}-${i}`),
+          tipo: "entrada",
+          descricao: `Upgrade de plano - ${cliente}`,
+          vencimento: formatDate(10 + i * 3, mes),
+          valor: 1500 + mes * 200 + i * 300,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+    }
+
+    // Serviços adicionais (consultoria, treinamento) - AUMENTADO
+    // Agora mensal com valores maiores
+    for (let i = 0; i < 2; i++) {
+      const cliente = clientes[(mes + i) % clientes.length];
+      lancamentos.push({
+        id: createId(`svc-${mes}-${i}`),
+        tipo: "entrada",
+        descricao: `Serviço adicional - Consultoria ${cliente} (${8 + i * 4}h)`,
+        vencimento: formatDate(15 + i * 5, mes),
+        valor: 1500 + mes * 100 + i * 500,
+        status: "concluido",
+        categoria: "venda_servicos",
+        contato: cliente,
+      });
+    }
+
+    // Serviços premium mensais (a partir do mês 2)
+    if (mes >= 2) {
+      for (let i = 0; i < 4; i++) {
+        const cliente = clientesAdicionais[(mes + i) % clientesAdicionais.length];
+        lancamentos.push({
+          id: createId(`svc-prem-${mes}-${i}`),
+          tipo: "entrada",
+          descricao: `Serviço premium - Consultoria estratégica ${cliente} (${12 + i * 4}h)`,
+          vencimento: formatDate(14 + i * 4, mes),
+          valor: 3500 + mes * 250 + i * 800,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+    }
+
+    // Treinamentos especializados (bimestral, valores maiores)
+    if (mes % 2 === 0) {
+      lancamentos.push({
+        id: createId(`trn-${mes}`),
+        tipo: "entrada",
+        descricao: `Treinamento especializado - ${clientes[mes % clientes.length]}`,
+        vencimento: formatDate(22, mes),
+        valor: 3500 + mes * 200,
         status: "concluido",
         categoria: "venda_servicos",
         contato: clientes[mes % clientes.length],
       });
+    }
+
+    // Treinamentos corporativos mensais (a partir do mês 2)
+    if (mes >= 2) {
+      for (let i = 0; i < 2; i++) {
+        const cliente = clientesAdicionais[(mes + i * 2) % clientesAdicionais.length];
+        lancamentos.push({
+          id: createId(`trn-corp-${mes}-${i}`),
+          tipo: "entrada",
+          descricao: `Treinamento corporativo - ${cliente}`,
+          vencimento: formatDate(18 + i * 5, mes),
+          valor: 5500 + mes * 300 + i * 1000,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+    }
+
+    // Novos produtos/serviços (trimestral)
+    if (mes % 3 === 0) {
+      lancamentos.push({
+        id: createId(`prod-${mes}`),
+        tipo: "entrada",
+        descricao: `Venda de produto adicional - Licenças Enterprise`,
+        vencimento: formatDate(18, mes),
+        valor: 8000 + mes * 1000,
+        status: "concluido",
+        categoria: "venda_produtos",
+        contato: "Vendas Diretas",
+      });
+    }
+
+    // Vendas de produtos mensais (a partir do mês 2)
+    if (mes >= 2) {
+      for (let i = 0; i < 3; i++) {
+        lancamentos.push({
+          id: createId(`prod-mensal-${mes}-${i}`),
+          tipo: "entrada",
+          descricao: `Venda de licenças adicionais - Cliente ${clientesAdicionais[(mes + i) % clientesAdicionais.length]}`,
+          vencimento: formatDate(16 + i * 4, mes),
+          valor: 4500 + mes * 400 + i * 1500,
+          status: "concluido",
+          categoria: "venda_produtos",
+          contato: clientesAdicionais[(mes + i) % clientesAdicionais.length],
+        });
+      }
+    }
+
+    // Parcerias e comissões recebidas (mensal a partir do mês 3)
+    if (mes >= 3) {
+      lancamentos.push({
+        id: createId(`parc-${mes}`),
+        tipo: "entrada",
+        descricao: `Comissões de parcerias estratégicas`,
+        vencimento: formatDate(25, mes),
+        valor: 2500 + mes * 300,
+        status: "concluido",
+        categoria: "outras_receitas_operacionais",
+        contato: "Parceiros",
+      });
+    }
+
+    // Parcerias adicionais (a partir do mês 2)
+    if (mes >= 2) {
+      for (let i = 0; i < 2; i++) {
+        lancamentos.push({
+          id: createId(`parc2-${mes}-${i}`),
+          tipo: "entrada",
+          descricao: `Receita de parcerias - ${["Revendas", "Integrações"][i]}`,
+          vencimento: formatDate(23 + i * 2, mes),
+          valor: 4000 + mes * 500 + i * 2000,
+          status: "concluido",
+          categoria: "outras_receitas_operacionais",
+          contato: "Parceiros Estratégicos",
+        });
+      }
+    }
+
+    // Contratos de suporte premium (mensal a partir do mês 2)
+    if (mes >= 2) {
+      for (let i = 0; i < 5; i++) {
+        const cliente = clientesAdicionais[(mes + i) % clientesAdicionais.length];
+        lancamentos.push({
+          id: createId(`sup-prem-${mes}-${i}`),
+          tipo: "entrada",
+          descricao: `Suporte premium - ${cliente}`,
+          vencimento: formatDate(5 + i * 5, mes),
+          valor: 2200 + mes * 200 + i * 500,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+    }
+
+    // Implementação e setup de projetos (mensal)
+    if (mes >= 2) {
+      for (let i = 0; i < 2; i++) {
+        const cliente = clientes[(mes + i) % clientes.length];
+        lancamentos.push({
+          id: createId(`impl-${mes}-${i}`),
+          tipo: "entrada",
+          descricao: `Implementação projeto - ${cliente}`,
+          vencimento: formatDate(11 + i * 7, mes),
+          valor: 8500 + mes * 600 + i * 3000,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+    }
+
+    // Receitas extras para o primeiro mês garantir lucratividade desde o início
+    if (mes === 1) {
+      // Contratos iniciais de suporte
+      for (let i = 0; i < 5; i++) {
+        const cliente = clientesAdicionais[i % clientesAdicionais.length];
+        lancamentos.push({
+          id: createId(`sup-init-${i}`),
+          tipo: "entrada",
+          descricao: `Suporte premium - ${cliente}`,
+          vencimento: formatDate(7 + i * 5, mes),
+          valor: 2400 + i * 500,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+      
+      // Implementações iniciais
+      for (let i = 0; i < 2; i++) {
+        const cliente = clientes[i % clientes.length];
+        lancamentos.push({
+          id: createId(`impl-init-${i}`),
+          tipo: "entrada",
+          descricao: `Implementação projeto - ${cliente}`,
+          vencimento: formatDate(15 + i * 7, mes),
+          valor: 9000 + i * 3000,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+      
+      // Serviços premium iniciais
+      for (let i = 0; i < 4; i++) {
+        const cliente = clientesAdicionais[i % clientesAdicionais.length];
+        lancamentos.push({
+          id: createId(`svc-init-${i}`),
+          tipo: "entrada",
+          descricao: `Serviço premium - Consultoria estratégica ${cliente}`,
+          vencimento: formatDate(12 + i * 4, mes),
+          valor: 3750 + i * 800,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+      
+      // Treinamentos iniciais
+      for (let i = 0; i < 2; i++) {
+        const cliente = clientesAdicionais[i % clientesAdicionais.length];
+        lancamentos.push({
+          id: createId(`trn-init-${i}`),
+          tipo: "entrada",
+          descricao: `Treinamento corporativo - ${cliente}`,
+          vencimento: formatDate(20 + i * 5, mes),
+          valor: 5800 + i * 1000,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
+      
+      // Vendas de produtos iniciais
+      for (let i = 0; i < 3; i++) {
+        lancamentos.push({
+          id: createId(`prod-init-${i}`),
+          tipo: "entrada",
+          descricao: `Venda de licenças adicionais - Cliente ${clientesAdicionais[i % clientesAdicionais.length]}`,
+          vencimento: formatDate(18 + i * 4, mes),
+          valor: 4900 + i * 1500,
+          status: "concluido",
+          categoria: "venda_produtos",
+          contato: clientesAdicionais[i % clientesAdicionais.length],
+        });
+      }
+      
+      // Parcerias iniciais
+      for (let i = 0; i < 2; i++) {
+        lancamentos.push({
+          id: createId(`parc-init-${i}`),
+          tipo: "entrada",
+          descricao: `Receita de parcerias - ${["Revendas", "Integrações"][i]}`,
+          vencimento: formatDate(25 + i * 2, mes),
+          valor: 4500 + i * 2000,
+          status: "concluido",
+          categoria: "outras_receitas_operacionais",
+          contato: "Parceiros Estratégicos",
+        });
+      }
+      
+      // Upgrades iniciais
+      for (let i = 0; i < 3; i++) {
+        const cliente = clientes[i % clientes.length];
+        lancamentos.push({
+          id: createId(`upg-init-${i}`),
+          tipo: "entrada",
+          descricao: `Upgrade de plano - ${cliente}`,
+          vencimento: formatDate(10 + i * 3, mes),
+          valor: 1700 + i * 300,
+          status: "concluido",
+          categoria: "venda_servicos",
+          contato: cliente,
+        });
+      }
     }
 
     // ===== DESPESAS OPERACIONAIS =====
@@ -382,13 +677,13 @@ function gerarLancamentos(): Lancamento[] {
     }
 
     // ===== RECEITAS FINANCEIRAS =====
-    // Receita de aplicações financeiras
+    // Receita de aplicações financeiras - AUMENTADO
     lancamentos.push({
       id: createId(`rfin-${mes}`),
       tipo: "entrada",
       descricao: "Receita aplicações financeiras",
       vencimento: formatDate(30, mes),
-      valor: 200 + mes * 20,
+      valor: 800 + mes * 150,
       status: mes === 12 ? "em_aberto" : "concluido",
       categoria: "receita_aplicacoes",
       contato: "Banco",
@@ -407,6 +702,31 @@ function gerarLancamentos(): Lancamento[] {
         contato: "Investidores",
       });
     }
+
+    // Receitas financeiras adicionais (juros recebidos, descontos obtidos)
+    // Mensal desde o primeiro mês
+    lancamentos.push({
+      id: createId(`jrs-rec-${mes}`),
+      tipo: "entrada",
+      descricao: "Juros e rendimentos de aplicações",
+      vencimento: formatDate(28, mes),
+      valor: mes === 1 ? 1400 : 1200 + mes * 200,
+      status: "concluido",
+      categoria: "outras_receitas_financeiras",
+      contato: "Banco",
+    });
+
+    // Reembolsos e outras receitas (mensal desde o primeiro mês)
+    lancamentos.push({
+      id: createId(`remb-${mes}`),
+      tipo: "entrada",
+      descricao: "Reembolso de despesas e ajustes",
+      vencimento: formatDate(27, mes),
+      valor: mes === 1 ? 1750 : 1500 + mes * 250,
+      status: "concluido",
+      categoria: "reembolso_despesas",
+      contato: "Fornecedores",
+    });
 
     // ===== DESPESAS FINANCEIRAS =====
     // Tarifas bancárias
@@ -466,8 +786,10 @@ function gerarLancamentos(): Lancamento[] {
 
     // ===== IMPOSTOS SOBRE O LUCRO =====
     // CSLL e IRPJ (mensal, dia 20)
+    // Lucro estimado ajustado para refletir as novas receitas significativas
     if (mes > 1) {
-      const lucroEstimado = 15000 + mes * 1000;
+      // Lucro crescente ao longo do ano devido ao aumento de receitas
+      const lucroEstimado = mes <= 3 ? 30000 + mes * 5000 : (mes <= 6 ? 50000 + mes * 3000 : 80000 + mes * 4000);
       lancamentos.push({
         id: createId(`csll-${mes}`),
         tipo: "saida",
