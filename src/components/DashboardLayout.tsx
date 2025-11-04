@@ -1,9 +1,18 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Search, Bell, User, MessageCircle } from "lucide-react";
+import { Search, Bell, User, MessageCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ReactNode, useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ReactNode, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -11,6 +20,15 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [showChatbot, setShowChatbot] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("userEmail");
+    navigate("/login");
+  };
+
+  const userEmail = localStorage.getItem("userEmail") || "usuário@exemplo.com";
 
   return (
     <SidebarProvider>
@@ -41,9 +59,28 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </Button>
 
               {/* Profile */}
-              <Button variant="ghost" size="icon" className="h-9 w-9">
-                <User className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <User className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">Minha Conta</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {userEmail}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
 
