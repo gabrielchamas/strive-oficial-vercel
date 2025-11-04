@@ -270,16 +270,20 @@ const Dashboard = () => {
                     {stat.title}
                   </CardTitle>
                   <Icon className={`h-4 w-4 ${
-                    stat.trend === "up" ? "text-green-600" :
-                    stat.trend === "down" ? "text-red-600" :
-                    "text-muted-foreground"
+                    stat.title === "Receita Total" || stat.title === "Despesas Total" 
+                      ? "text-foreground" 
+                      : stat.trend === "up" ? "text-green-600" :
+                        stat.trend === "down" ? "text-red-600" :
+                        "text-muted-foreground"
                   }`} />
                 </CardHeader>
                 <CardContent>
                   <div className={`text-2xl font-bold ${
-                    stat.trend === "up" ? "text-green-600" :
-                    stat.trend === "down" ? "text-red-600" :
-                    ""
+                    stat.title === "Receita Total" || stat.title === "Despesas Total" 
+                      ? "text-foreground" 
+                      : stat.trend === "up" ? "text-green-600" :
+                        stat.trend === "down" ? "text-red-600" :
+                        ""
                   }`}>
                     {stat.value}
                   </div>
