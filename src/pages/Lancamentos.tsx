@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { CreateLancamentoDialog } from "@/components/CreateLancamentoDialog";
 import { FilterLancamentosDialog, FilterState } from "@/components/FilterLancamentosDialog";
 import { getCategoryLabel } from "@/types/categories";
-import { mockLancamentos as lancamentosGerados } from "./lancamentos-data";
+import { loadLancamentos, addLancamento, getAllLancamentos, type Lancamento as LancamentoStore } from "@/lib/lancamentos-store";
 
 type LancamentoType = "entrada" | "saida" | "recorrente" | "parcelado";
 type StatusType = "em_aberto" | "concluido";
@@ -40,7 +40,8 @@ interface Lancamento {
   atrasado?: boolean;
 }
 
-export const mockLancamentos: Lancamento[] = lancamentosGerados;
+// Mantido para compatibilidade (será substituído pelo store em outras páginas)
+export const mockLancamentos: Lancamento[] = loadLancamentos();
 
 /*
 // Dados antigos - substituídos por gerador em lancamentos-data.ts
@@ -130,7 +131,7 @@ const Lancamentos = () => {
   const [sortColumn, setSortColumn] = useState<"vencimento" | "valor" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [lancamentos, setLancamentos] = useState<Lancamento[]>(mockLancamentos);
+  const [lancamentos, setLancamentos] = useState<Lancamento[]>(loadLancamentos());
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterState>({
     direcao: "todos",
@@ -272,8 +273,24 @@ const Lancamentos = () => {
     setDetailsOpen(true);
   };
 
-  const handleCreateLancamento = (novoLancamento: Lancamento) => {
-    setLancamentos(prev => [novoLancamento, ...prev]);
+  const handleCreateLancamento = (novoLancamento: LancamentoStore) => {
+    try {
+      // Adiciona ao localStorage através do store (com validação de 2025)
+      addLancamento(novoLancamento);
+      // Atualiza o estado local
+      setLancamentos(prev => [novoLancamento, ...prev]);
+    } catch (error) {
+      // Erro já é tratado no store, mas garantimos que não quebra a UI
+      console.error("Erro ao criar lançamento:", error);
+    }
+  };
+
+  // Função para recarregar lançamentos (usada no botão atualizar)
+  const handleRefresh = () => {
+    const lancamentosAtualizados = getAllLancamentos();
+    setLancamentos(lancamentosAtualizados);
+    setLoading(true);
+    setTimeout(() => setLoading(false), 500);
   };
 
   const handleApplyFilters = (filters: FilterState) => {
@@ -810,7 +827,7 @@ const Lancamentos = () => {
             <h1 className="text-2xl font-semibold">Lançamentos</h1>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => setLoading(true)}>
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Atualizar
             </Button>

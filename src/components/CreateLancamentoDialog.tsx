@@ -44,7 +44,10 @@ export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento 
   const [tipoTransacao, setTipoTransacao] = useState<"entrada" | "saida">("entrada");
   const [tipoLancamento, setTipoLancamento] = useState<"padrao" | "parcelado" | "recorrente">("padrao");
   const [descricao, setDescricao] = useState("");
-  const [dataVencimento, setDataVencimento] = useState<Date>();
+  // Inicializa com a data de hoje, mas dentro de 2025
+  const hoje = new Date();
+  const dataInicial = hoje.getFullYear() === 2025 ? hoje : new Date(2025, hoje.getMonth(), hoje.getDate());
+  const [dataVencimento, setDataVencimento] = useState<Date>(dataInicial);
   const [valor, setValor] = useState("");
   const [contato, setContato] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -82,7 +85,21 @@ export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento 
       return;
     }
 
+    // Validação: garantir que a data seja de 2025
+    const dataFinal = dataVencimento || new Date();
+    const anoData = dataFinal.getFullYear();
+    
+    if (anoData !== 2025) {
+      toast.error("Apenas lançamentos do ano de 2025 são permitidos");
+      return;
+    }
+
     const valorNumerico = parseFloat(valor.replace(",", "."));
+    if (isNaN(valorNumerico) || valorNumerico <= 0) {
+      toast.error("Valor inválido");
+      return;
+    }
+    
     const valorFinal = tipoTransacao === "saida" ? -valorNumerico : valorNumerico;
 
     const contatoMapValueToLabel: Record<string, string> = {
@@ -96,7 +113,7 @@ export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento 
       id: Math.random().toString(36).substr(2, 9),
       tipo: tipoLancamento === "padrao" ? tipoTransacao : tipoLancamento,
       descricao,
-      vencimento: dataVencimento ? format(dataVencimento, "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy"),
+      vencimento: format(dataFinal, "dd/MM/yyyy"),
       valor: valorFinal,
       status: concluido ? "concluido" : "em_aberto",
       categoria: categoria,
@@ -127,7 +144,10 @@ export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento 
     setValor("");
     setContato("");
     setCategoria("");
-    setDataVencimento(undefined);
+    // Reset para data inicial de 2025
+    const hoje = new Date();
+    const dataInicial = hoje.getFullYear() === 2025 ? hoje : new Date(2025, hoje.getMonth(), hoje.getDate());
+    setDataVencimento(dataInicial);
     setConcluido(false);
     setUploadedFile(null);
     setNumeroParcelas("1");
@@ -295,6 +315,12 @@ export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento 
                     initialFocus
                     locale={ptBR}
                     className="pointer-events-auto"
+                    disabled={(date) => {
+                      const year = date.getFullYear();
+                      return year !== 2025;
+                    }}
+                    fromDate={new Date(2025, 0, 1)}
+                    toDate={new Date(2025, 11, 31)}
                   />
                 </PopoverContent>
               </Popover>

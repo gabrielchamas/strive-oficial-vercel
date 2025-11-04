@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { mockLancamentos as lancamentosData } from "./Lancamentos";
+import { getAllLancamentos, type Lancamento } from "@/lib/lancamentos-store";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 type DreGroupKey =
@@ -222,6 +222,46 @@ const linhasPrincipais: Array<{ grupo: DreGroupKey | "metric:margem" | "metric:e
 
 const Demonstrativo = () => {
   const [ano, setAno] = useState("2025");
+  const [lancamentosData, setLancamentosData] = useState<Lancamento[]>(getAllLancamentos());
+
+  // Atualiza os lançamentos quando a página é montada ou quando o ano muda
+  useEffect(() => {
+    const atualizarLancamentos = () => {
+      setLancamentosData(getAllLancamentos());
+    };
+    
+    // Atualiza ao montar
+    atualizarLancamentos();
+    
+    // Listener para mudanças no localStorage (quando um novo lançamento é adicionado em outra aba)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "strive_lancamentos") {
+        atualizarLancamentos();
+      }
+    };
+    
+    // Listener para eventos customizados (mesma aba)
+    const handleCustomStorage = () => {
+      atualizarLancamentos();
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("lancamentos-updated", handleCustomStorage);
+    
+    // Também verifica periodicamente como fallback (a cada 2 segundos)
+    const interval = setInterval(atualizarLancamentos, 2000);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("lancamentos-updated", handleCustomStorage);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Força atualização quando o ano mudar
+  useEffect(() => {
+    setLancamentosData(getAllLancamentos());
+  }, [ano]);
 
   const matrizValores = useMemo(() => {
     // estrutura: { [linha]: number[12] }
@@ -230,9 +270,17 @@ const Demonstrativo = () => {
 
     lancamentosData.forEach((l) => {
       const [d, m, y] = l.vencimento.split("/").map(Number);
-      if (!d || !m || !y) return;
+      if (!d || !m || !y) {
+        console.warn(`Lançamento com data inválida: ${l.id} - ${l.vencimento}`);
+        return;
+      }
       if (String(y) !== ano) return;
       const idx = m - 1;
+      
+      if (idx < 0 || idx > 11) {
+        console.warn(`Lançamento com mês inválido: ${l.id} - ${l.vencimento}`);
+        return;
+      }
 
       // valor positivo para entradas, negativo para saídas
       const valor = l.valor;
@@ -240,6 +288,21 @@ const Demonstrativo = () => {
       // mapear categoria
       const map = categoryToDreLine[l.categoria];
       if (!map) {
+        // Se a categoria não estiver mapeada, tenta classificar pelo tipo
+        console.warn(`Categoria não mapeada: ${l.categoria} - Lançamento: ${l.id}`);
+        
+        // Classificação genérica baseada no tipo
+        const isEntrada = l.tipo === "entrada" || l.valor > 0;
+        const grupoGenerico: DreGroupKey = isEntrada 
+          ? "outras_receitas" 
+          : "despesas_administrativas";
+        const linhaGenerica = isEntrada 
+          ? "Outras receitas diversas" 
+          : "Outras despesas administrativas";
+        
+        const sinal = isEntrada ? 1 : -1;
+        ensure(linhaGenerica)[idx] += Math.abs(valor) * sinal;
+        ensure(grupoGenerico)[idx] += Math.abs(valor) * sinal;
         return;
       }
 
@@ -250,6 +313,8 @@ const Demonstrativo = () => {
         "despesas_administrativas",
         "despesas_pessoal",
         "despesas_financeiras",
+        "investimentos",
+        "impostos_lucro",
       ].includes(map.group);
 
       const sinal = isDespesa ? -1 : 1;
@@ -285,7 +350,7 @@ const Demonstrativo = () => {
     }
 
     return base;
-  }, [ano]);
+  }, [lancamentosData, ano]);
 
   const totalColuna = (key: string) => (matrizValores[key] || Array(12).fill(0));
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -311,13 +376,12 @@ const Demonstrativo = () => {
                 </SelectContent>
               </Select>
 
-              <Select value={ano} onValueChange={setAno}>
+              <Select value={ano} onValueChange={setAno} disabled>
                 <SelectTrigger className="w-28 h-8">
                   <SelectValue placeholder="Ano" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="2025">2025</SelectItem>
-                  <SelectItem value="2024">2024</SelectItem>
                 </SelectContent>
               </Select>
 
