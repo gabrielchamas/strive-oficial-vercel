@@ -12,6 +12,7 @@ import Demonstrativo from "./pages/Demonstrativo";
 import Settings from "./pages/Settings";
 import Radar from "./pages/Radar";
 import Lancamentos from "./pages/Lancamentos";
+import Categorias from "./pages/Categorias";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -94,6 +95,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Lancamentos />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/categorias"
+            element={
+              <ProtectedRoute>
+                <Categorias />
               </ProtectedRoute>
             }
           />

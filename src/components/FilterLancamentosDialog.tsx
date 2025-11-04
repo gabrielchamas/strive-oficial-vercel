@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { CATEGORIAS_ENTRADAS, CATEGORIAS_SAIDAS } from "@/types/categories";
+import { getAllCategoriesWithCustom } from "@/lib/categories-store";
 
 interface FilterLancamentosDialogProps {
   open: boolean;
@@ -40,11 +41,11 @@ export const FilterLancamentosDialog = ({
     conciliacao: "todos",
   });
 
-  // Categories available according to selected direction
+  // Categories available according to selected direction (incluindo customizadas)
   const categoriasDisponiveis = useMemo(() => {
-    if (filters.direcao === "entradas") return CATEGORIAS_ENTRADAS;
-    if (filters.direcao === "saidas") return CATEGORIAS_SAIDAS;
-    return [...CATEGORIAS_ENTRADAS, ...CATEGORIAS_SAIDAS];
+    if (filters.direcao === "entradas") return getAllCategoriesWithCustom("entrada");
+    if (filters.direcao === "saidas") return getAllCategoriesWithCustom("saida");
+    return [...getAllCategoriesWithCustom("entrada"), ...getAllCategoriesWithCustom("saida")];
   }, [filters.direcao]);
 
   // Ensure selected category remains valid when changing direction

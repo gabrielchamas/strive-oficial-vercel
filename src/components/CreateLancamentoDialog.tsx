@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CATEGORIAS_ENTRADAS, CATEGORIAS_SAIDAS } from "@/types/categories";
+import { getAllCategoriesWithCustom } from "@/lib/categories-store";
 
 type Lancamento = {
   id: string;
@@ -158,7 +159,7 @@ export const CreateLancamentoDialog = ({ open, onOpenChange, onCreateLancamento 
     onOpenChange(false);
   };
 
-  const categorias = tipoTransacao === "entrada" ? CATEGORIAS_ENTRADAS : CATEGORIAS_SAIDAS;
+  const categorias = getAllCategoriesWithCustom(tipoTransacao);
 
   const valorFinal = valor ? parseFloat(valor.replace(",", ".")) : 0;
 
